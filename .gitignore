@@ -1,0 +1,15 @@
+data/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+.ipynb_checkpoints/
+.DS_Store
+*.log
+.env
+.venv/
+venv/
+node_modules/
+*.tmp
+.cache/
