@@ -8,8 +8,10 @@ __pycache__/
 .DS_Store
 *.log
 .env
+*.db
 .venv/
 venv/
 node_modules/
 *.tmp
 .cache/
+test_connection.py

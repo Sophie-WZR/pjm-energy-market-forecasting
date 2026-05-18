@@ -45,6 +45,8 @@ Run the notebooks in this order:
    - Trains XGBoost models for next-hour day-ahead LMP regression and spike classification.
    - Runs feature importance, ablation, diagnostics, spike timing, and RT-DA spread signal analysis.
 
+Each notebook now ends with an `Export Dashboard Outputs` section that saves clean tables and presentation-ready figures to `outputs/`.
+
 ## Feature Engineering
 
 The project uses time-series features designed for hourly electricity market data:
@@ -90,6 +92,10 @@ The price spike classifier achieves:
 
 The LMP model is primarily driven by recent market price history. The most important regression feature is `total_lmp_day_ahead_lag_1`, followed by `total_lmp_day_ahead_lag_24`.
 
+The project also includes a dedicated LMP benchmark table. A simple current-hour day-ahead LMP persistence benchmark is very strong for one-step-ahead price-level forecasting, with MAE around `5.73`. This is an important market result: short-horizon LMP has strong persistence, so complex models should be evaluated against naive but operationally meaningful baselines.
+
+A confusion matrix is included for the spike classifier to separate false alarms from missed spike events. In the current test period, the model produces relatively few false positives but misses some true spike periods, suggesting that recall would be the main area to improve if the goal were risk-alert coverage.
+
 ### LMP Lag Ablation Experiment
 
 To test whether the LMP model was overly dependent on recent prices, a second model was trained after removing all LMP-related lag and rolling features.
@@ -104,6 +110,8 @@ Removing LMP history increased MAE by about `8.22`, or `127.9%`. This confirms t
 ### Price Spike Analysis
 
 Day-ahead price spikes are not evenly distributed across the day. In the test period, spikes cluster most strongly around morning and evening ramp periods, especially hours `6-7` and `19-20`. This aligns with operational intuition: price stress often appears during high-load or ramping periods when the system is tighter.
+
+The notebook also compares congestion and spread behavior during spike versus non-spike periods. Spike hours have higher average day-ahead LMP, higher average congestion component, and higher load than non-spike hours. This provides a market-structure explanation layer beyond model metrics.
 
 ### RT-DA Spread Signal
 
@@ -127,8 +135,10 @@ This is not a production trading strategy, but it demonstrates how forecasting o
 - Electricity load is highly persistent at the hourly horizon; lagged load and load ramp features dominate next-hour demand forecasting.
 - Tree-based models, especially XGBoost, improve substantially over the persistence baseline for load forecasting.
 - Day-ahead LMP is also highly persistent; lagged LMP features are the strongest predictors of next-hour price.
+- Current-price persistence is a very strong LMP benchmark and can outperform more complex models on one-step-ahead price-level MAE.
 - The LMP ablation experiment shows a clear tradeoff between a highly accurate price-history-driven model and a more fundamentals-driven model.
 - Price spikes cluster around ramp and high-stress operating hours.
+- Congestion and load are higher during spike periods, supporting a market-stress interpretation.
 - RT-DA spread signals provide a practical bridge from forecasting to market risk monitoring and hedging analysis.
 
 ## How to Run
@@ -136,7 +146,7 @@ This is not a production trading strategy, but it demonstrates how forecasting o
 1. Install the core Python dependencies:
 
 ```bash
-pip install pandas numpy matplotlib seaborn scikit-learn xgboost
+pip install pandas numpy matplotlib seaborn scikit-learn xgboost streamlit plotly "snowflake-connector-python[pandas]" python-dotenv
 ```
 
 2. Open Jupyter or VS Code notebooks from the project root.
@@ -150,6 +160,57 @@ notebooks/03_pjm_lmp_market_forecasting.ipynb
 ```
 
 4. Confirm that the expected CSV files exist in `data/` before running.
+
+5. Optional: regenerate all dashboard and GitHub artifacts in one command:
+
+```bash
+python scripts/export_dashboard_outputs.py
+```
+
+This writes model predictions, benchmark tables, feature importance files, confusion matrices, spike/congestion summaries, spread signals, and PNG figures to `outputs/`.
+
+6. Launch the interactive Streamlit dashboard:
+
+```bash
+streamlit run app.py
+```
+
+The dashboard reads from `outputs/` and falls back gracefully if optional files are missing.
+
+## Snowflake Data Layer
+
+This project includes an optional Snowflake data layer that keeps the existing notebook workflow intact while adding a more industry-style analytics architecture.
+
+- Snowflake stores raw PJM AEP load, Columbus weather, and PJM DA/RT LMP data in `PJM_MARKET_DB.ANALYTICS`.
+- `sql/01_create_raw_tables.sql` creates raw tables that closely match the local CSV inputs:
+  - `RAW_AEP_LOAD_HOURLY`
+  - `RAW_WEATHER_HOURLY`
+  - `RAW_LMP_HOURLY`
+- `sql/02_create_market_mart.sql` builds `MART_AEP_MARKET_HOURLY`, a cleaned hourly market mart with load, weather, LMP, spread, congestion-share, spike, and calendar fields.
+- The notebooks can either use local CSVs or Snowflake. Set `USE_SNOWFLAKE = True` near the top of a notebook to read from `MART_AEP_MARKET_HOURLY`; leave it as `False` to preserve the current local workflow.
+- The Streamlit dashboard can later be pointed directly to Snowflake or continue reading exported files from `outputs/`.
+
+Configure credentials through environment variables or a local `.env` file:
+
+```bash
+cp .env.example .env
+```
+
+Then fill in the Snowflake values. Never commit `.env` or hard-code passwords.
+
+To create tables, upload local CSVs, and build the mart:
+
+```bash
+python scripts/upload_to_snowflake.py
+```
+
+To export the Snowflake mart back to a local CSV:
+
+```bash
+python scripts/query_market_mart.py
+```
+
+This saves `outputs/master_market_df_from_snowflake.csv` and prints row count, datetime range, and columns.
 
 ## Project Structure
 
@@ -166,7 +227,15 @@ pjm-energy-market-forecasting/
 │   ├── 01_pjm_aep_load_weather_pipeline_eda.ipynb
 │   ├── 02_pjm_aep_load_forecasting_models.ipynb
 │   └── 03_pjm_lmp_market_forecasting.ipynb
+├── app.py
 ├── outputs/
+├── sql/
+│   ├── 01_create_raw_tables.sql
+│   └── 02_create_market_mart.sql
+├── scripts/
+│   ├── export_dashboard_outputs.py
+│   ├── query_market_mart.py
+│   └── upload_to_snowflake.py
 └── README.md
 ```
 
@@ -177,4 +246,3 @@ pjm-energy-market-forecasting/
 - The LMP model relies heavily on recent price history, which is useful for short-horizon accuracy but may be less robust during structural market shifts.
 - The spike classifier has stronger precision than recall, meaning it is better at confirming high-risk periods than capturing every spike.
 - A production version should include walk-forward validation, multi-zone modeling, weather forecasts, outage data, transaction costs, and formal PnL backtesting for spread signals.
-
