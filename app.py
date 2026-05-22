@@ -812,32 +812,6 @@ def aep_hourly_regime(master):
     )
 
 
-def aep_load_price_stress(master):
-    need = ["hour", "load_mw", "total_lmp_day_ahead"]
-    if not has_cols(master, need):
-        st.info("AEP load-price view needs hour, load_mw, and total_lmp_day_ahead.")
-        return
-    df = master.dropna(subset=need).copy()
-    if len(df) > 4500:
-        df = df.sample(4500, random_state=129)
-    if "da_price_spike" not in df.columns:
-        df["da_price_spike"] = 0
-    df["Price state"] = np.where(df["da_price_spike"] == 1, "Spike", "Normal")
-    fig = px.scatter(
-        df,
-        x="load_mw",
-        y="total_lmp_day_ahead",
-        color="Price state",
-        color_discrete_map={"Normal": COLORS["blue"], "Spike": COLORS["red"]},
-        opacity=0.58,
-        hover_data=["hour"],
-    )
-    fig.add_vline(x=df["load_mw"].quantile(0.90), line_color=COLORS["orange"], line_dash="dash")
-    fig.add_hline(y=df["total_lmp_day_ahead"].quantile(0.95), line_color=COLORS["orange"], line_dash="dash")
-    fig.update_layout(title_text="", xaxis_title="AEP load (MW)", yaxis_title="DA LMP ($ / MWh)")
-    st.plotly_chart(chart_theme(fig, height=480, hovermode="closest", legend=True, legend_inside=True), use_container_width=True)
-
-
 def rolling_volatility(pred):
     if not has_cols(pred, ["datetime", "actual_da_lmp"]):
         return
@@ -954,31 +928,6 @@ def feature_chart(df):
     st.plotly_chart(chart_theme(fig, height=450, legend=False), use_container_width=True)
 
 
-def congestion_scatter(master):
-    need = ["congestion_price_day_ahead", "total_lmp_day_ahead", "load_mw"]
-    if not has_cols(master, need):
-        return
-    df = master.dropna(subset=need).copy()
-    if len(df) > 4000:
-        df = df.sample(4000, random_state=129)
-    if "da_price_spike" not in df.columns:
-        df["da_price_spike"] = 0
-    df["Market state"] = np.where(df["da_price_spike"] == 1, "Spike", "Normal")
-    fig = px.scatter(
-        df,
-        x="congestion_price_day_ahead",
-        y="total_lmp_day_ahead",
-        color="Market state",
-        size="load_mw",
-        size_max=12,
-        opacity=0.62,
-        color_discrete_map={"Normal": COLORS["blue"], "Spike": COLORS["red"]},
-    )
-    fig.add_hline(y=df["total_lmp_day_ahead"].quantile(0.95), line_color=COLORS["orange"], line_dash="dash")
-    fig.update_layout(title_text="", xaxis_title="DA congestion component", yaxis_title="DA LMP")
-    st.plotly_chart(chart_theme(fig, height=445, hovermode="closest", legend=True, legend_inside=True), use_container_width=True)
-
-
 def command_center(data):
     stats = market_stats(data)
     page_header(
@@ -1062,26 +1011,6 @@ def market_drivers(data):
     callout("Volatility, hour structure, load, and temperature remain useful for interpreting stress around spike windows.")
 
 
-def congestion_watch(data):
-    stats = market_stats(data)
-    page_header(
-        "Market Stress Analysis",
-        "Congestion, load pressure, and RT-DA spread behavior during stressed AEP market conditions.",
-        stats,
-    )
-    output_warning(data)
-    a, b = st.columns([1.12, 1])
-    with a:
-        panel_start("Congestion vs Day-Ahead LMP")
-        congestion_scatter(data["master"])
-    with b:
-        panel_start("Extreme RT-DA Spread Hours")
-        spread_timeline(data["spread"])
-        spread_watchlist(data["spread"])
-    panel_start("Load vs Day-Ahead LMP Stress")
-    aep_load_price_stress(data["master"])
-
-
 def model_notes(data):
     stats = market_stats(data)
     page_header("Model Notes", "Pipeline context and analytical interpretation.", stats)
@@ -1129,7 +1058,6 @@ pages = [
     "Forecasting",
     "Spike Risk",
     "Market Drivers",
-    "Market Stress",
     "Model Notes",
 ]
 nav, filter_drawer = st.columns([6.4, 1])
@@ -1159,7 +1087,5 @@ elif page == "Spike Risk":
     spike_surveillance(data)
 elif page == "Market Drivers":
     market_drivers(data)
-elif page == "Market Stress":
-    congestion_watch(data)
 elif page == "Model Notes":
     model_notes(data)
