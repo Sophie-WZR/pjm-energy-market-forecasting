@@ -10,284 +10,342 @@ import streamlit as st
 st.set_page_config(
     page_title="PJM Energy Market Analytics Dashboard",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
 
-PROJECT_ROOT = Path(__file__).resolve().parent
-OUTPUT_DIR = PROJECT_ROOT / "outputs"
-DATA_DIR = PROJECT_ROOT / "data"
+ROOT = Path(__file__).resolve().parent
+OUTPUT_DIR = ROOT / "outputs"
+DATA_DIR = ROOT / "data"
 
-NAVY = "#07111f"
-PANEL = "#0d1b2e"
-PANEL_2 = "#101f35"
-GRID = "#223650"
-TEXT = "#d8e6f3"
-MUTED = "#7f94aa"
-CYAN = "#27d8ff"
-BLUE = "#4a8dff"
-ORANGE = "#ff9f43"
-RED = "#ff4d5e"
-GREEN = "#39d98a"
+COLORS = {
+    "ink": "#02040a",
+    "panel": "#0f172a",
+    "grid": "rgba(148,163,184,0.12)",
+    "text": "#dbeafe",
+    "muted": "#94a3b8",
+    "white": "#f8fbff",
+    "cyan": "#38bdf8",
+    "blue": "#60a5fa",
+    "orange": "#fb923c",
+    "red": "#f87171",
+}
 
 
 st.markdown(
     """
     <style>
-    :root {
-        --navy: #07111f;
-        --panel: #0d1b2e;
-        --panel2: #101f35;
-        --grid: #223650;
-        --text: #d8e6f3;
-        --muted: #7f94aa;
-        --cyan: #27d8ff;
-        --blue: #4a8dff;
-        --orange: #ff9f43;
-        --red: #ff4d5e;
-        --green: #39d98a;
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+    html, body, [class*="css"] {
+        font-family: 'Inter', sans-serif;
     }
 
     .stApp {
         background:
-            radial-gradient(circle at 18% 5%, rgba(39, 216, 255, 0.10), transparent 26%),
-            radial-gradient(circle at 78% 0%, rgba(91, 110, 255, 0.12), transparent 30%),
-            linear-gradient(135deg, #090821 0%, #07111f 48%, #081322 100%);
-        background-size: auto;
-        color: var(--text);
+            radial-gradient(circle at top left, rgba(37, 74, 120, 0.28), transparent 34%),
+            linear-gradient(145deg, #07101d 0%, #050a14 52%, #03060d 100%);
+        color: #e8f1ff;
     }
 
     .block-container {
-        padding-top: 1.1rem;
-        padding-bottom: 2.5rem;
-        max-width: 1500px;
+        padding-top: 0.65rem;
+        padding-left: 2.5rem;
+        padding-right: 2.5rem;
+        max-width: 1680px;
     }
 
-    div[data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #081322 0%, #0b1728 100%);
-        border-right: 1px solid rgba(39, 216, 255, 0.18);
-        box-shadow: 10px 0 28px rgba(0, 0, 0, 0.22);
+    [data-testid="stHeader"],
+    [data-testid="stToolbar"],
+    [data-testid="stDecoration"],
+    [data-testid="stStatusWidget"],
+    #MainMenu,
+    footer {
+        display: none !important;
+        visibility: hidden !important;
     }
 
-    div[data-testid="stSidebar"] * {
-        color: #c8d8e8;
+    [data-testid="stSidebar"] {
+        display: none;
     }
 
-    div[role="radiogroup"] label {
-        background: rgba(13, 27, 46, 0.78);
-        border: 1px solid rgba(39, 216, 255, 0.13);
-        border-radius: 8px;
-        padding: 0.4rem 0.55rem;
-        margin-bottom: 0.45rem;
-        transition: all 160ms ease;
+    [data-testid="collapsedControl"] {
+        display: none;
     }
 
-    div[role="radiogroup"] label:hover {
-        border-color: rgba(39, 216, 255, 0.55);
-        box-shadow: 0 0 18px rgba(39, 216, 255, 0.16);
-        transform: translateX(2px);
-    }
-
-    .topbar {
+    .analytics-header {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 1rem;
-        padding: 0.95rem 1.05rem;
-        background: linear-gradient(135deg, rgba(13, 27, 46, 0.94), rgba(8, 19, 34, 0.96));
-        border: 1px solid rgba(39, 216, 255, 0.22);
-        border-radius: 10px;
-        box-shadow: 0 0 32px rgba(39, 216, 255, 0.08), inset 0 0 20px rgba(74, 141, 255, 0.03);
-        margin-bottom: 0.85rem;
+        gap: 14px;
+        padding: 11px 14px;
+        margin-bottom: 7px;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.18);
     }
 
-    .title-block h1 {
-        font-size: 1.65rem;
-        line-height: 1.1;
-        color: #f2f8ff;
-        margin: 0;
-        letter-spacing: 0;
-        font-weight: 820;
-    }
-
-    .title-block p {
-        margin: 0.35rem 0 0 0;
-        color: var(--muted);
-        font-size: 0.88rem;
-    }
-
-    .status-strip {
-        display: flex;
-        gap: 0.55rem;
-        flex-wrap: wrap;
-        justify-content: flex-end;
-    }
-
-    .status-pill {
-        background: rgba(16, 31, 53, 0.95);
-        border: 1px solid rgba(39, 216, 255, 0.20);
-        border-radius: 999px;
-        padding: 0.38rem 0.68rem;
-        color: #cfe8f8;
-        font-size: 0.78rem;
-        font-weight: 650;
-        white-space: nowrap;
-    }
-
-    .live-dot {
-        display: inline-block;
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        background: var(--green);
-        box-shadow: 0 0 12px rgba(57, 217, 138, 0.9);
-        margin-right: 0.35rem;
-    }
-
-    .ops-card, .kpi-card, .callout-card {
-        background:
-            linear-gradient(180deg, rgba(31, 39, 83, 0.78), rgba(15, 25, 48, 0.92)),
-            rgba(13, 27, 46, 0.95);
-        border: 1px solid rgba(160, 188, 255, 0.12);
-        border-radius: 12px;
-        box-shadow: 0 14px 34px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.045);
-    }
-
-    .ops-card {
-        padding: 1rem;
-        min-height: 116px;
-    }
-
-    .ops-card:hover, .kpi-card:hover, .callout-card:hover {
-        border-color: rgba(39, 216, 255, 0.40);
-        box-shadow: 0 0 26px rgba(39, 216, 255, 0.11), 0 12px 28px rgba(0, 0, 0, 0.25);
-    }
-
-    .kpi-card {
-        padding: 0.85rem 0.9rem;
-        min-height: 126px;
-    }
-
-    .kpi-label, .ops-label {
-        color: var(--muted);
-        font-size: 0.72rem;
-        font-weight: 760;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        margin-bottom: 0.45rem;
-    }
-
-    .kpi-value {
-        color: #f2f8ff;
-        font-size: 1.55rem;
-        font-weight: 820;
+    .analytics-title {
+        color: #f8fbff;
+        font-size: 22px;
+        font-weight: 800;
+        letter-spacing: -0.02em;
         line-height: 1.12;
     }
 
-    .kpi-trend {
-        color: var(--cyan);
-        font-size: 0.76rem;
-        margin-top: 0.45rem;
+    .analytics-subtitle {
+        margin-top: 3px;
+        color: #a7b4c7;
+        font-size: 13px;
+        font-weight: 500;
+        letter-spacing: 0.01em;
     }
 
-    .ops-value {
-        color: #f2f8ff;
-        font-size: 1.3rem;
+    div[data-testid="stSegmentedControl"] {
+        display: inline-block;
+        width: fit-content;
+        max-width: 100%;
+        margin-bottom: 5px;
+    }
+
+    div[data-testid="stSegmentedControl"] [role="radiogroup"],
+    div[data-testid="stButtonGroup"] {
+        display: inline-flex !important;
+        width: fit-content !important;
+        max-width: 100%;
+        gap: 12px;
+        padding: 0;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
+    }
+
+    div[data-testid="stSegmentedControl"] button,
+    div[data-testid="stButtonGroup"] button {
+        min-height: 37px;
+        padding-left: 13px;
+        padding-right: 13px;
+        margin-right: 8px !important;
+        border-radius: 10px !important;
+        border: 1px solid rgba(148, 163, 184, 0.16) !important;
+        background: rgba(15, 23, 42, 0.58) !important;
+        color: #cbd5e1 !important;
+        font-weight: 650 !important;
+        white-space: nowrap;
+    }
+
+    div[data-testid="stSegmentedControl"] button:last-child,
+    div[data-testid="stButtonGroup"] button:last-child {
+        margin-right: 0 !important;
+    }
+
+    div[data-testid="stSegmentedControl"] button:hover,
+    div[data-testid="stButtonGroup"] button:hover {
+        border-color: rgba(125, 177, 226, 0.34) !important;
+        background: rgba(21, 35, 59, 0.84) !important;
+    }
+
+    div[data-testid="stSegmentedControl"] button[aria-checked="true"],
+    div[data-testid="stButtonGroup"] button[aria-checked="true"],
+    div[data-testid="stSegmentedControl"] button[aria-selected="true"],
+    div[data-testid="stButtonGroup"] button[aria-selected="true"],
+    div[data-testid="stSegmentedControl"] button[aria-pressed="true"],
+    div[data-testid="stButtonGroup"] button[aria-pressed="true"] {
+        border: 1px solid rgba(96, 165, 250, 0.62) !important;
+        background: rgba(25, 49, 81, 0.92) !important;
+        color: #f8fbff !important;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+    }
+
+    div[data-testid="stPopover"] button {
+        min-height: 37px;
+        border-radius: 10px;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        background: rgba(15, 23, 42, 0.72);
+        color: #dbeafe;
+        font-weight: 650;
+    }
+
+    .page-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        gap: 16px;
+        margin: 8px 0 10px;
+        padding: 0 2px;
+    }
+
+    .page-title {
+        font-size: 22px;
         font-weight: 800;
+        letter-spacing: -0.03em;
+        color: #f8fbff;
     }
 
-    .ops-note {
-        color: var(--muted);
-        font-size: 0.79rem;
-        margin-top: 0.35rem;
+    .page-subtitle {
+        margin-top: 3px;
+        color: #93a4bd;
+        font-size: 13px;
         line-height: 1.35;
     }
 
-    .section-head {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin: 1.3rem 0 0.65rem 0;
+    .date-label {
+        padding: 4px 0;
+        color: #a7b4c7;
+        font-size: 12px;
+        font-weight: 550;
+        letter-spacing: 0.02em;
+        white-space: nowrap;
     }
 
-    .section-head h2 {
-        color: #eef7ff;
-        font-size: 1.02rem;
-        letter-spacing: 0.08em;
+    .kpi-card {
+        padding: 14px 15px;
+        min-height: 100px;
+        border-radius: 12px;
+        background: rgba(15, 23, 42, 0.78);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.18);
+    }
+
+    .kpi-label {
+        color: #94a3b8;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.13em;
         text-transform: uppercase;
-        margin: 0;
     }
 
-    .section-head span {
-        color: var(--muted);
-        font-size: 0.78rem;
+    .kpi-value {
+        margin-top: 9px;
+        color: #f8fafc;
+        font-size: 27px;
+        font-weight: 800;
+        letter-spacing: -0.04em;
     }
 
-    .callout-card {
-        padding: 1rem;
-        color: var(--text);
-        height: 100%;
+    .kpi-note {
+        margin-top: 6px;
+        color: #38bdf8;
+        font-size: 12px;
+        font-weight: 700;
     }
 
-    .callout-card h4 {
-        color: #f2f8ff;
-        font-size: 0.92rem;
-        letter-spacing: 0.04em;
+    .kpi-warn {
+        color: #fb923c;
+    }
+
+    .panel-title {
+        font-size: 13px;
+        font-weight: 800;
+        letter-spacing: 0.12em;
         text-transform: uppercase;
-        margin: 0 0 0.55rem 0;
+        color: #f1f5f9;
+        margin: 11px 0 6px;
     }
 
-    .callout-card p {
-        color: #b8c9da;
-        font-size: 0.86rem;
-        line-height: 1.45;
-        margin: 0;
-    }
-
-    .terminal-line {
-        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-        background: rgba(5, 13, 24, 0.78);
-        border: 1px solid rgba(39, 216, 255, 0.16);
-        border-radius: 8px;
-        padding: 0.75rem 0.9rem;
-        color: #bdefff;
-        font-size: 0.84rem;
-    }
-
-    .pulse-number {
-        color: #f2f8ff;
-        font-size: 2.85rem;
-        font-weight: 850;
-        line-height: 0.98;
-        margin: 0.25rem 0 0.4rem 0;
-    }
-
-    .pulse-sub {
-        color: #b8c9da;
-        font-size: 0.92rem;
-        margin-bottom: 0.9rem;
-    }
-
-    .mini-divider {
+    .panel-title:after {
+        content: "";
+        display: inline-block;
+        width: 28px;
         height: 1px;
-        background: rgba(160, 188, 255, 0.12);
-        margin: 0.8rem 0;
+        margin-left: 10px;
+        vertical-align: middle;
+        background: rgba(148, 163, 184, 0.45);
     }
 
-    .stDataFrame {
-        border: 1px solid rgba(39, 216, 255, 0.16);
-        border-radius: 10px;
+    .callout {
+        padding: 16px 18px;
+        border-radius: 16px;
+        background: rgba(10, 17, 31, 0.72);
+        border-left: 3px solid rgba(96, 165, 250, 0.72);
+        color: #cbd5e1;
+        font-size: 14px;
+        line-height: 1.5;
+        margin-bottom: 12px;
+    }
+
+    .warning-callout {
+        border-left-color: #fb923c;
+    }
+
+    .risk-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-bottom: 14px;
+    }
+
+    .risk-cell {
+        padding: 13px 14px;
+        border-radius: 14px;
+        background: rgba(8, 20, 38, 0.90);
+        border: 1px solid rgba(148, 163, 184, 0.12);
+    }
+
+    .risk-label {
+        color: #94a3b8;
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.13em;
+        text-transform: uppercase;
+    }
+
+    .risk-value {
+        color: #f8fbff;
+        font-size: 21px;
+        font-weight: 800;
+        margin-top: 7px;
+    }
+
+    .watch-table {
+        border-collapse: collapse;
+        width: 100%;
         overflow: hidden;
+        border-radius: 14px;
+        font-size: 12px;
     }
 
-    div[data-testid="stAlert"] {
-        background: rgba(16, 31, 53, 0.92);
-        border: 1px solid rgba(39, 216, 255, 0.20);
-        color: var(--text);
+    .watch-table th {
+        padding: 10px 11px;
+        background: rgba(8, 20, 38, 0.96);
+        border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+        color: #94a3b8;
+        text-align: left;
+        text-transform: uppercase;
+        letter-spacing: 0.09em;
+    }
+
+    .watch-table td {
+        padding: 10px 11px;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+        color: #dbeafe;
+    }
+
+    .watch-table tr:nth-child(even) td {
+        background: rgba(148, 163, 184, 0.05);
+    }
+
+    .spread-up {
+        color: #fb923c !important;
+        font-weight: 800;
+    }
+
+    .spread-down {
+        color: #38bdf8 !important;
+        font-weight: 800;
+    }
+
+    [data-testid="stAlert"] {
+        background: rgba(8, 20, 38, 0.92);
+        border: 1px solid rgba(56, 189, 248, 0.22);
+        color: #dbeafe;
+    }
+
+    div[data-testid="stPlotlyChart"] {
+        border-radius: 16px;
     }
 
     hr {
-        border-color: rgba(39, 216, 255, 0.14);
+        border-color: rgba(148, 163, 184, 0.16);
     }
     </style>
     """,
@@ -295,828 +353,813 @@ st.markdown(
 )
 
 
-def read_csv_from_locations(filename, parse_dates=None):
+def kpi_card(label, value, note="", warn=False):
+    note_class = "kpi-note kpi-warn" if warn else "kpi-note"
+    return f"""
+    <div class="kpi-card">
+        <div class="kpi-label">{label}</div>
+        <div class="kpi-value">{value}</div>
+        <div class="{note_class}">{note}</div>
+    </div>
+    """
+
+
+def panel_start(title):
+    st.markdown(f'<div class="panel-title">{title}</div>', unsafe_allow_html=True)
+
+
+def callout(text, warn=False):
+    cls = "callout warning-callout" if warn else "callout"
+    st.markdown(f'<div class="{cls}">{text}</div>', unsafe_allow_html=True)
+
+
+def find_csv(name, parse_dates=None):
     for folder in (OUTPUT_DIR, DATA_DIR):
-        path = folder / filename
+        path = folder / name
         if path.exists():
             return pd.read_csv(path, parse_dates=parse_dates)
     return None
 
 
-@st.cache_data(show_spinner=False)
-def load_dashboard_data():
+def normalize_predictions(df):
+    if df is None:
+        return None
+    rename = {
+        "datetime_ending_ept": "datetime",
+        "prediction": "xgboost_prediction",
+        "pred_da_lmp": "xgboost_prediction",
+        "actual": "actual_da_lmp",
+        "target_da_lmp_next_hour": "actual_da_lmp",
+        "baseline_prediction": "persistence_prediction",
+        "spike_probability": "predicted_spike_probability",
+    }
+    df = df.rename(columns={k: v for k, v in rename.items() if k in df.columns}).copy()
+    if "datetime" in df.columns:
+        df["datetime"] = pd.to_datetime(df["datetime"], errors="coerce")
+    if "hour" not in df.columns and "datetime" in df.columns:
+        df["hour"] = df["datetime"].dt.hour
+    return df
+
+
+def demo_bundle():
+    idx = pd.date_range("2025-01-25", "2025-04-30 23:00", freq="h")
+    rng = np.random.default_rng(129)
+    hour = idx.hour
+    wave = 9 * np.sin((hour - 7) / 24 * 2 * np.pi)
+    stress = rng.normal(0, 8.5, len(idx))
+    jump = (rng.random(len(idx)) < 0.045) * rng.gamma(4, 10, len(idx))
+    actual = 34 + wave + stress + jump
+    pred = pd.Series(actual).shift(1).bfill().to_numpy() + rng.normal(0, 4.2, len(idx))
+    persistence = pd.Series(actual).shift(1).bfill().to_numpy()
+    spike_threshold = np.quantile(actual, 0.95)
+    spike_prob = np.clip((actual - spike_threshold + 22) / 45 + rng.normal(0, 0.08, len(idx)), 0.02, 0.98)
+    load = 12100 + 1800 * np.sin((hour - 11) / 24 * 2 * np.pi) + rng.normal(0, 520, len(idx))
+    congestion = rng.normal(0.8, 4.4, len(idx)) + jump * 0.16
+    spread = rng.normal(-1.5, 12, len(idx)) + jump * 0.35
+    master = pd.DataFrame(
+        {
+            "datetime": idx,
+            "hour": hour,
+            "load_mw": load,
+            "temperature_2m": 44 + 15 * np.sin((hour - 13) / 24 * 2 * np.pi) + rng.normal(0, 5, len(idx)),
+            "total_lmp_day_ahead": actual,
+            "total_lmp_real_time": actual + spread,
+            "congestion_price_day_ahead": congestion,
+            "rt_da_spread": spread,
+            "da_price_spike": (actual > spike_threshold).astype(int),
+        }
+    )
+    prediction = master[
+        [
+            "datetime",
+            "hour",
+            "load_mw",
+            "temperature_2m",
+            "total_lmp_day_ahead",
+            "total_lmp_real_time",
+            "congestion_price_day_ahead",
+            "rt_da_spread",
+            "da_price_spike",
+        ]
+    ].copy()
+    prediction["actual_da_lmp"] = actual
+    prediction["actual_spike"] = master["da_price_spike"]
+    prediction["xgboost_prediction"] = pred
+    prediction["persistence_prediction"] = persistence
+    prediction["predicted_spike_probability"] = spike_prob
+    prediction["predicted_spike"] = (spike_prob >= 0.60).astype(int)
+    spread_df = prediction[
+        ["datetime", "hour", "total_lmp_day_ahead", "total_lmp_real_time", "rt_da_spread", "load_mw"]
+    ].copy()
+    spread_df["spread_signal"] = spread_df["rt_da_spread"]
+    spread_df["signal_direction"] = np.where(spread_df["spread_signal"] > 0, "RT premium", "DA premium")
+    importance = pd.DataFrame(
+        {
+            "feature": [
+                "total_lmp_day_ahead_lag_1",
+                "total_lmp_day_ahead_lag_24",
+                "hour",
+                "load_mw",
+                "temperature_2m",
+                "da_lmp_rolling_std_24",
+            ],
+            "importance": [0.60, 0.13, 0.08, 0.07, 0.06, 0.06],
+        }
+    )
     return {
-        "master": read_csv_from_locations("master_market_df.csv", parse_dates=["datetime"]),
-        "predictions": read_csv_from_locations("model_predictions.csv", parse_dates=["datetime"]),
-        "reg_importance": read_csv_from_locations("regression_feature_importance.csv"),
-        "cls_importance": read_csv_from_locations("classification_feature_importance.csv"),
-        "benchmark": read_csv_from_locations("benchmark_results.csv"),
-        "spike_analysis": read_csv_from_locations("spike_analysis.csv"),
-        "confusion_selected": read_csv_from_locations("spike_confusion_matrix_selected.csv"),
-        "confusion_default": read_csv_from_locations("spike_confusion_matrix_default.csv"),
-        "spread_signals": read_csv_from_locations("rt_da_spread_signals.csv", parse_dates=["datetime"]),
+        "master": master,
+        "pred": prediction,
+        "reg_imp": importance,
+        "cls_imp": importance.sort_values("importance").reset_index(drop=True),
+        "benchmark": pd.DataFrame(
+            {
+                "model": ["Persistence: current DA LMP", "XGBoost: full features"],
+                "MAE": [7.52, 6.51],
+                "RMSE": [12.48, 10.80],
+            }
+        ),
+        "spike": master.groupby("hour", as_index=False)["da_price_spike"].sum().rename(columns={"da_price_spike": "spike_count"}),
+        "cm_default": pd.DataFrame([[2031, 77], [78, 113]]),
+        "cm_selected": pd.DataFrame([[2053, 55], [84, 107]]),
+        "spread": spread_df,
     }
 
 
-def missing_file_message(filename, expected_columns=None):
-    st.info(f"Data file not found. Please run the modeling notebook and export `{filename}`.")
-    if expected_columns:
-        st.caption("Expected columns: " + ", ".join(f"`{col}`" for col in expected_columns))
+@st.cache_data(show_spinner=False)
+def load_data():
+    demo = demo_bundle()
+    file_specs = {
+        "master": ("master_market_df.csv", ["datetime"]),
+        "pred": ("model_predictions.csv", ["datetime"]),
+        "reg_imp": ("regression_feature_importance.csv", None),
+        "cls_imp": ("classification_feature_importance.csv", None),
+        "benchmark": ("benchmark_results.csv", None),
+        "spike": ("spike_analysis.csv", None),
+        "cm_default": ("spike_confusion_matrix_default.csv", None),
+        "cm_selected": ("spike_confusion_matrix_selected.csv", None),
+        "spread": ("rt_da_spread_signals.csv", ["datetime"]),
+    }
+    data, missing_files = {}, []
+    for key, (name, parse_dates) in file_specs.items():
+        df = find_csv(name, parse_dates=parse_dates)
+        if df is None:
+            data[key] = demo[key]
+            missing_files.append(name)
+        else:
+            data[key] = df
+    data["pred"] = normalize_predictions(data["pred"])
+    for key in ["master", "spread"]:
+        if "datetime" in data[key].columns:
+            data[key]["datetime"] = pd.to_datetime(data[key]["datetime"], errors="coerce")
+        if "hour" not in data[key].columns and "datetime" in data[key].columns:
+            data[key]["hour"] = data[key]["datetime"].dt.hour
+    data["missing_files"] = missing_files
+    return data
 
 
-def require_columns(df, filename, columns):
+def has_cols(df, cols):
+    return df is not None and all(col in df.columns for col in cols)
+
+
+def output_warning(data):
+    if data["missing_files"]:
+        names = ", ".join(data["missing_files"][:3])
+        more = "..." if len(data["missing_files"]) > 3 else ""
+        st.warning(f"Using demo data because exported model outputs were not found: {names}{more}")
+
+
+def filter_market_data(data, start, end, hours):
+    filtered = dict(data)
+    start_ts = pd.Timestamp(start)
+    end_ts = pd.Timestamp(end) + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
+    for key in ["pred", "master", "spread"]:
+        df = filtered[key].copy()
+        if "datetime" not in df.columns:
+            continue
+        mask = df["datetime"].between(start_ts, end_ts)
+        if "hour" in df.columns:
+            mask &= df["hour"].between(hours[0], hours[1])
+        filtered[key] = df.loc[mask].reset_index(drop=True)
+    return filtered
+
+
+def cm_values(df):
     if df is None:
-        missing_file_message(filename, columns)
-        return False
-    missing = [col for col in columns if col not in df.columns]
-    if missing:
-        st.warning(f"`{filename}` is missing required columns: {', '.join(missing)}")
-        return False
-    return True
-
-
-def section(title, right_label="MARKET SURVEILLANCE"):
-    st.markdown(
-        f"""
-        <div class="section-head">
-            <h2>{title}</h2>
-            <span>{right_label}</span>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
-def kpi_card(label, value, trend=None, tone="cyan"):
-    color = {"cyan": CYAN, "green": GREEN, "orange": ORANGE, "red": RED, "blue": BLUE}.get(tone, CYAN)
-    trend_html = f'<div class="kpi-trend" style="color:{color};">{trend}</div>' if trend else ""
-    st.markdown(
-        f"""
-        <div class="kpi-card">
-            <div class="kpi-label">{label}</div>
-            <div class="kpi-value">{value}</div>
-            {trend_html}
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
-def ops_card(label, value, note=None, tone="cyan"):
-    color = {"cyan": CYAN, "green": GREEN, "orange": ORANGE, "red": RED, "blue": BLUE}.get(tone, CYAN)
-    st.markdown(
-        f"""
-        <div class="ops-card">
-            <div class="ops-label">{label}</div>
-            <div class="ops-value" style="color:{color};">{value}</div>
-            {f'<div class="ops-note">{note}</div>' if note else ''}
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
-def callout(title, body):
-    st.markdown(
-        f"""
-        <div class="callout-card">
-            <h4>{title}</h4>
-            <p>{body}</p>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
-def terminal(text):
-    st.markdown(f'<div class="terminal-line">{text}</div>', unsafe_allow_html=True)
-
-
-def pulse_card(label, value, subtext, trend=None, tone="cyan"):
-    color = {"cyan": CYAN, "green": GREEN, "orange": ORANGE, "red": RED, "blue": BLUE}.get(tone, CYAN)
-    st.markdown(
-        f"""
-        <div class="ops-card">
-            <div class="ops-label">{label}</div>
-            <div class="pulse-number">{value}</div>
-            <div class="pulse-sub">{subtext}</div>
-            {f'<div class="kpi-trend" style="color:{color};">{trend}</div>' if trend else ''}
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
-def plot_theme(fig, height=None):
-    fig.update_layout(
-        template="plotly_dark",
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="#081322",
-        font=dict(family="Arial", size=12, color=TEXT),
-        margin=dict(l=18, r=18, t=52, b=28),
-        legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=1.02,
-            xanchor="right",
-            x=1,
-            bgcolor="rgba(0,0,0,0)",
-            font=dict(color="#b8c9da"),
-        ),
-        hoverlabel=dict(bgcolor="#0d1b2e", bordercolor=CYAN, font_size=12),
-        hovermode="x unified",
-    )
-    fig.update_xaxes(gridcolor=GRID, zerolinecolor=GRID, linecolor=GRID)
-    fig.update_yaxes(gridcolor=GRID, zerolinecolor=GRID, linecolor=GRID)
-    if height:
-        fig.update_layout(height=height)
-    return fig
-
-
-def clean_model_name(name):
-    return str(name).replace("Persistence: current DA LMP", "Persistence").replace("XGBoost: full features", "XGBoost")
-
-
-def confusion_values(confusion_df):
-    if confusion_df is None or confusion_df.empty:
         return None
-    numeric = confusion_df.select_dtypes(include="number")
-    if numeric.shape[0] >= 2 and numeric.shape[1] >= 2:
-        cm = numeric.iloc[:2, :2].to_numpy()
-        tn, fp = cm[0]
-        fn, tp = cm[1]
-        return int(tn), int(fp), int(fn), int(tp)
-    return None
+    numeric = df.select_dtypes(include="number")
+    if numeric.shape[0] < 2 or numeric.shape[1] < 2:
+        return None
+    tn, fp = numeric.iloc[0, :2]
+    fn, tp = numeric.iloc[1, :2]
+    return int(tn), int(fp), int(fn), int(tp)
 
 
-def get_xgb_metrics(benchmark):
-    mae, rmse = np.nan, np.nan
-    baseline_mae = np.nan
-    if benchmark is None or not {"model", "MAE", "RMSE"}.issubset(benchmark.columns):
-        return mae, rmse, baseline_mae
-    baseline = benchmark[benchmark["model"].astype(str).str.contains("Persistence", case=False)]
-    xgb = benchmark[benchmark["model"].astype(str).str.contains("XGBoost: full features|XGBoost", case=False, regex=True)]
-    if not baseline.empty:
-        baseline_mae = baseline.iloc[0]["MAE"]
-    if not xgb.empty:
-        mae = xgb.iloc[0]["MAE"]
-        rmse = xgb.iloc[0]["RMSE"]
-    return mae, rmse, baseline_mae
-
-
-def precision_recall(confusion_df):
-    vals = confusion_values(confusion_df)
-    if vals is None:
-        return np.nan, np.nan
-    tn, fp, fn, tp = vals
-    precision = tp / (tp + fp) if (tp + fp) else np.nan
-    recall = tp / (tp + fn) if (tp + fn) else np.nan
-    return precision, recall
-
-
-def market_status(data):
-    predictions = data["predictions"]
-    spread_df = data["spread_signals"]
-    master = data["master"] if data["master"] is not None else predictions
-
-    regime = "Normal"
-    regime_tone = "green"
-    recent_vol = np.nan
-    avg_peak_spread = np.nan
-    peak_window = "17:00-20:00 EPT"
-    congestion_pressure = "Moderate"
-    congestion_tone = "orange"
-    data_range = "No exported data"
-
-    if predictions is not None and "datetime" in predictions.columns:
-        start = pd.to_datetime(predictions["datetime"]).min()
-        end = pd.to_datetime(predictions["datetime"]).max()
-        if pd.notna(start) and pd.notna(end):
-            data_range = f"{start:%Y-%m-%d} to {end:%Y-%m-%d}"
-
-    if predictions is not None and "actual_da_lmp" in predictions.columns:
-        recent = predictions["actual_da_lmp"].tail(168)
-        recent_vol = recent.std()
-        full_vol = predictions["actual_da_lmp"].std()
-        if recent_vol > full_vol * 1.25:
-            regime, regime_tone = "Volatile", "red"
-        elif recent_vol > full_vol * 0.85:
-            regime, regime_tone = "Elevated", "orange"
-        else:
-            regime, regime_tone = "Normal", "green"
-
-    if spread_df is not None and {"hour", "spread_signal"}.issubset(spread_df.columns):
-        peak = spread_df[spread_df["hour"].between(16, 20)]
+def market_stats(data):
+    pred, master, spread = data["pred"], data["master"], data["spread"]
+    benchmark = data["benchmark"]
+    mae, rmse, baseline_mae = 6.51, 10.80, np.nan
+    if has_cols(benchmark, ["model", "MAE", "RMSE"]):
+        models = benchmark["model"].astype(str)
+        xgb = benchmark[models.str.contains("XGBoost", case=False)]
+        baseline = benchmark[models.str.contains("Persistence", case=False)]
+        if not xgb.empty:
+            mae, rmse = float(xgb.iloc[0]["MAE"]), float(xgb.iloc[0]["RMSE"])
+        if not baseline.empty:
+            baseline_mae = float(baseline.iloc[0]["MAE"])
+    precision, recall = 0.73, 0.48
+    vals = cm_values(data["cm_default"])
+    if vals:
+        _, fp, fn, tp = vals
+        precision = tp / (tp + fp) if tp + fp else precision
+        recall = tp / (tp + fn) if tp + fn else recall
+    vol_7d, regime = 16.89, "Elevated"
+    if has_cols(pred, ["actual_da_lmp"]):
+        recent = pred.sort_values("datetime")["actual_da_lmp"].tail(168)
+        full = pred["actual_da_lmp"]
+        if len(recent.dropna()) > 12:
+            vol_7d = float(recent.std())
+            ratio = vol_7d / full.std() if full.std() else 1
+            regime = "Volatile" if ratio > 1.25 else "Elevated" if ratio > 0.85 else "Normal"
+    peak_spread = 13.28
+    if has_cols(spread, ["hour", "spread_signal"]):
+        peak = spread[spread["hour"].between(16, 20)]["spread_signal"].abs()
         if not peak.empty:
-            avg_peak_spread = peak["spread_signal"].abs().mean()
-
-    if master is not None and {"congestion_price_day_ahead", "da_price_spike"}.issubset(master.columns):
-        recent_congestion = master["congestion_price_day_ahead"].tail(168).abs().mean()
-        full_congestion = master["congestion_price_day_ahead"].abs().mean()
-        if recent_congestion > full_congestion * 1.35:
-            congestion_pressure, congestion_tone = "High", "red"
-        elif recent_congestion > full_congestion * 0.85:
-            congestion_pressure, congestion_tone = "Moderate", "orange"
-        else:
-            congestion_pressure, congestion_tone = "Low", "green"
-
+            peak_spread = float(peak.mean())
+    congestion_pressure = "Moderate"
+    if has_cols(master, ["congestion_price_day_ahead"]):
+        congestion = master["congestion_price_day_ahead"].abs()
+        recent_congestion = congestion.tail(168).mean()
+        ratio = recent_congestion / congestion.mean() if congestion.mean() else 1
+        congestion_pressure = "High" if ratio > 1.35 else "Low" if ratio < 0.85 else "Moderate"
+    improvement = np.nan
+    if pd.notna(baseline_mae) and baseline_mae:
+        improvement = (baseline_mae - mae) / baseline_mae * 100
+    if "datetime" in pred.columns and not pred.empty:
+        data_range = f"{pred['datetime'].min():%Y-%m-%d} to {pred['datetime'].max():%Y-%m-%d}"
+    else:
+        data_range = "No active range"
     return {
+        "mae": mae,
+        "rmse": rmse,
+        "precision": precision,
+        "recall": recall,
+        "vol_7d": vol_7d,
         "regime": regime,
-        "regime_tone": regime_tone,
-        "recent_vol": recent_vol,
-        "avg_peak_spread": avg_peak_spread,
-        "peak_window": peak_window,
+        "peak_spread": peak_spread,
         "congestion_pressure": congestion_pressure,
-        "congestion_tone": congestion_tone,
+        "improvement": improvement,
         "data_range": data_range,
     }
 
 
-def render_topbar(data, page):
-    status = market_status(data)
+def chart_theme(fig, height=430, hovermode="x unified", legend=True, compact_title_gap=False, legend_inside=False):
+    title = fig.layout.title.text
+    if legend_inside:
+        top_margin = 6
+    elif legend:
+        top_margin = 18 if compact_title_gap or not title else 76
+    else:
+        top_margin = 8 if not title else 42
+    legend_y = 0.995 if legend_inside else 1.005 if compact_title_gap else 1.045
+    legend_anchor = "top" if legend_inside else "bottom"
+    fig.update_layout(
+        template="plotly_dark",
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(8, 20, 38, 0.55)",
+        font=dict(color="#dbeafe", family="Inter"),
+        margin=dict(l=20, r=20, t=top_margin, b=18),
+        legend=dict(
+            orientation="h",
+            yanchor=legend_anchor,
+            y=legend_y,
+            xanchor="left",
+            x=0.01 if legend_inside else 0,
+            bgcolor="rgba(0,0,0,0)",
+        ),
+        height=height,
+        hovermode=hovermode,
+        showlegend=legend,
+    )
+    if title:
+        fig.update_layout(title=dict(text=title, font=dict(color="#f8fbff", family="Inter", size=16), x=0.01, xanchor="left", y=0.985))
+    else:
+        fig.update_layout(title_text="")
+    fig.update_xaxes(gridcolor="rgba(148,163,184,0.12)")
+    fig.update_yaxes(gridcolor="rgba(148,163,184,0.12)")
+    return fig
+
+
+def page_header(title, subtitle, stats):
     st.markdown(
         f"""
-        <div class="topbar">
-            <div class="title-block">
-                <h1>PJM Energy Market Analytics Dashboard</h1>
-                <p>Short-horizon DA LMP forecasting | Spike risk surveillance | AEP zone market operations</p>
+        <div class="page-head">
+            <div>
+                <div class="page-title">{title}</div>
+                <div class="page-subtitle">{subtitle}</div>
             </div>
-            <div class="status-strip">
-                <div class="status-pill"><span class="live-dot"></span>MODEL ONLINE</div>
-                <div class="status-pill">REGION: PJM AEP ZONE</div>
-                <div class="status-pill">VIEW: {page.upper()}</div>
-                <div class="status-pill">DATA: {status["data_range"]}</div>
-            </div>
+            <div class="date-label">Data range: {stats["data_range"]}</div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
 
-def render_kpi_strip(data):
-    benchmark = data["benchmark"]
-    mae, rmse, baseline_mae = get_xgb_metrics(benchmark)
-    precision, recall = precision_recall(data["confusion_default"])
-    status = market_status(data)
-
-    mae_value = "6.43 $/MWh" if pd.isna(mae) else f"{mae:.2f} $/MWh"
-    rmse_value = "10.80 $/MWh" if pd.isna(rmse) else f"{rmse:.2f} $/MWh"
-    precision_value = "0.74" if pd.isna(precision) else f"{precision:.2f}"
-    recall_value = "0.47" if pd.isna(recall) else f"{recall:.2f}"
-
-    if pd.notna(mae) and pd.notna(baseline_mae) and baseline_mae != 0:
-        delta = (baseline_mae - mae) / baseline_mae * 100
-        trend = f"{delta:+.1f}% vs persistence"
-    else:
-        trend = "model benchmark"
-
-    vol_value = "N/A" if pd.isna(status["recent_vol"]) else f"{status['recent_vol']:.2f}"
-    spread_value = "N/A" if pd.isna(status["avg_peak_spread"]) else f"{status['avg_peak_spread']:.2f} $/MWh"
-
+def metric_strip(stats):
+    improvement = f"{stats['improvement']:+.1f}% vs persistence" if pd.notna(stats["improvement"]) else "forecast error"
     cols = st.columns(6)
-    with cols[0]:
-        kpi_card("Next-Hour DA LMP MAE", mae_value, trend, "cyan")
-    with cols[1]:
-        kpi_card("RMSE", rmse_value, "tail-risk error monitor", "blue")
-    with cols[2]:
-        kpi_card("Spike Precision", precision_value, "false alarm control", "green")
-    with cols[3]:
-        kpi_card("Spike Recall", recall_value, "missed event exposure", "orange")
-    with cols[4]:
-        kpi_card("Volatility Regime", status["regime"], f"7-day sigma: {vol_value}", status["regime_tone"])
-    with cols[5]:
-        kpi_card("Avg Peak-Hour Spread", spread_value, "hours 16-20 EPT", "cyan")
-
-
-def overview_page(data):
-    status = market_status(data)
-    section("Market Pulse Board", "AEP NODE MONITOR")
-    left, middle, right = st.columns([0.95, 1.35, 2.25])
-
-    with left:
-        pulse_value = status["regime"]
-        vol_text = "Recent DA LMP dispersion" if pd.isna(status["recent_vol"]) else f"7-day sigma {status['recent_vol']:.2f}"
-        pulse_card("Volatility Regime", pulse_value, vol_text, "live risk state", status["regime_tone"])
-        st.markdown('<div class="mini-divider"></div>', unsafe_allow_html=True)
-        ops_card("Congestion Pressure", status["congestion_pressure"], "Recent DA congestion component intensity.", status["congestion_tone"])
-        st.markdown('<div class="mini-divider"></div>', unsafe_allow_html=True)
-        ops_card("Peak Risk Window", status["peak_window"], "Monitor evening ramp exposure.", "cyan")
-
-    with middle:
-        recent_market_events(data)
-
-    with right:
-        pjm_map(data)
-
-    section("Operations Workflow", "SIGNAL STACK")
-    cols = st.columns(5)
-    steps = [
-        ("Data Ingestion", "PJM DA/RT LMP, AEP load, weather."),
-        ("Feature Build", "Lag, rolling volatility, calendar, congestion."),
-        ("Price Forecast", "Next-hour DA LMP monitor."),
-        ("Spike Monitor", "Extreme-price alert layer."),
-        ("Market Signals", "Spread and congestion surveillance."),
+    cards = [
+        ("Next-Hour DA LMP MAE", f"{stats['mae']:.2f} $/MWh", improvement, stats["improvement"] < 0 if pd.notna(stats["improvement"]) else False),
+        ("RMSE", f"{stats['rmse']:.2f} $/MWh", "test-set error", False),
+        ("Spike Precision", f"{stats['precision']:.2f}", "predicted spike quality", False),
+        ("Spike Recall", f"{stats['recall']:.2f}", "spike event coverage", True),
+        ("Recent Volatility", stats["regime"], f"7-day sigma: {stats['vol_7d']:.2f}", stats["regime"] != "Normal"),
+        ("Avg Peak-Hour Spread", f"{stats['peak_spread']:.2f} $/MWh", "hours 16-20 EPT", False),
     ]
-    for col, (title, body) in zip(cols, steps):
+    for col, card in zip(cols, cards):
         with col:
-            callout(title, body)
-    terminal("LMP = ENERGY + CONGESTION + LOSS | Forecast stack: lagged prices + load + weather + volatility + calendar structure")
-
-    section("Analyst Notes", "MARKET OBSERVATION")
-    a, b, c = st.columns(3)
-    with a:
-        callout("Persistence Dominates", "Short-horizon DA LMP carries strong momentum. Lag-1 and lag-24 prices anchor the forecast.")
-    with b:
-        callout("Stress Window", "Price risk concentrates around ramp periods when load, volatility, and congestion can rise together.")
-    with c:
-        callout("Operational Use", "The workflow supports exposure monitoring, spike alerts, congestion awareness, and desk-level market review.")
+            st.markdown(kpi_card(*card), unsafe_allow_html=True)
 
 
-def recent_market_events(data):
+def forecast_chart(pred, height=468):
+    need = ["datetime", "actual_da_lmp", "xgboost_prediction", "persistence_prediction"]
+    if not has_cols(pred, need):
+        st.info("Forecast output needs datetime, actual_da_lmp, xgboost_prediction, and persistence_prediction.")
+        return
+    df = pred.sort_values("datetime").tail(640)
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=df["datetime"], y=df["actual_da_lmp"], name="Actual DA LMP", line=dict(color=COLORS["white"], width=2.1)))
+    fig.add_trace(go.Scatter(x=df["datetime"], y=df["xgboost_prediction"], name="XGBoost forecast", line=dict(color=COLORS["cyan"], width=2)))
+    fig.add_trace(
+        go.Scatter(
+            x=df["datetime"],
+            y=df["persistence_prediction"],
+            name="Persistence",
+            line=dict(color=COLORS["orange"], width=1.35, dash="dot"),
+            opacity=0.80,
+        )
+    )
+    if "predicted_spike_probability" in df.columns:
+        high_risk = df[df["predicted_spike_probability"] >= df["predicted_spike_probability"].quantile(0.92)]
+        fig.add_trace(
+            go.Scatter(
+                x=high_risk["datetime"],
+                y=high_risk["actual_da_lmp"],
+                mode="markers",
+                name="High spike probability",
+                marker=dict(color=COLORS["red"], size=7, line=dict(color=COLORS["white"], width=0.7)),
+            )
+        )
+    fig.update_layout(title_text="", yaxis_title="$ / MWh")
+    st.plotly_chart(chart_theme(fig, height=height, compact_title_gap=True, legend_inside=True), use_container_width=True)
+
+
+def risk_panel(stats, pred):
+    risk_window = "17:00-20:00"
+    spike_prob = np.nan
+    if has_cols(pred, ["predicted_spike_probability"]):
+        spike_prob = pred["predicted_spike_probability"].tail(48).max()
+    prob_text = f"{spike_prob:.2f}" if pd.notna(spike_prob) else "N/A"
     st.markdown(
-        """
-        <div class="ops-card">
-            <div class="ops-label">Recent Market Watchlist</div>
+        f"""
+        <div class="risk-grid">
+            <div class="risk-cell"><div class="risk-label">Volatility</div><div class="risk-value">{stats["regime"]}</div></div>
+            <div class="risk-cell"><div class="risk-label">Congestion</div><div class="risk-value">{stats["congestion_pressure"]}</div></div>
+            <div class="risk-cell"><div class="risk-label">Peak Window</div><div class="risk-value">{risk_window}</div></div>
+            <div class="risk-cell"><div class="risk-label">48h Spike Prob Max</div><div class="risk-value">{prob_text}</div></div>
+        </div>
         """,
         unsafe_allow_html=True,
     )
-    signals = data["spread_signals"]
-    if signals is None or not {"datetime", "hour", "spread_signal", "signal_direction", "load_mw"}.issubset(signals.columns):
-        st.info("Data file not found. Please run the modeling notebook and export `rt_da_spread_signals.csv`.")
-        st.markdown("</div>", unsafe_allow_html=True)
+    callout("Recent day-ahead price history anchors the short-horizon forecast. Volatility, spikes, and RT-DA spread add risk context.")
+    callout("Recall is the active gap: high-confidence spike flags are useful, but some stress events remain unflagged.", warn=True)
+
+
+def spread_watchlist(spread):
+    if not has_cols(spread, ["datetime", "hour", "spread_signal", "load_mw"]):
+        st.info("Spread observations need rt_da_spread_signals.csv from the modeling output export.")
         return
-
-    watch = signals.copy()
-    watch["abs_spread"] = watch["spread_signal"].abs()
-    watch = watch.sort_values("abs_spread", ascending=False).head(8)
-    watch["datetime"] = pd.to_datetime(watch["datetime"]).dt.strftime("%m-%d %H:%M")
-    watch = watch[["datetime", "hour", "spread_signal", "load_mw", "signal_direction"]].rename(
-        columns={
-            "datetime": "Time",
-            "hour": "Hr",
-            "spread_signal": "RT-DA",
-            "load_mw": "Load MW",
-            "signal_direction": "Signal",
-        }
-    )
-    st.dataframe(
-        watch.style.format({"RT-DA": "{:+.2f}", "Load MW": "{:,.0f}"}),
-        use_container_width=True,
-        hide_index=True,
-    )
-    st.markdown("</div>", unsafe_allow_html=True)
-
-
-def forecasting_page(data):
-    predictions = data["predictions"]
-    benchmark = data["benchmark"]
-
-    section("Forecast Monitor", "ACTUAL VS MODEL VS PERSISTENCE")
-    required = ["datetime", "actual_da_lmp", "xgboost_prediction", "persistence_prediction", "hour"]
-    if require_columns(predictions, "model_predictions.csv", required):
-        chart_df = predictions[required].sort_values("datetime").tail(900).copy()
-        chart_df["error_abs"] = (chart_df["actual_da_lmp"] - chart_df["xgboost_prediction"]).abs()
-        roll_std = chart_df["actual_da_lmp"].rolling(48, min_periods=12).std()
-        center = chart_df["xgboost_prediction"]
-        upper = center + roll_std
-        lower = center - roll_std
-
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(x=chart_df["datetime"], y=upper, mode="lines", line=dict(width=0), showlegend=False))
-        fig.add_trace(
-            go.Scatter(
-                x=chart_df["datetime"],
-                y=lower,
-                mode="lines",
-                fill="tonexty",
-                fillcolor="rgba(39,216,255,0.10)",
-                line=dict(width=0),
-                name="Volatility band",
-            )
+    df = spread.copy()
+    if "signal_direction" not in df.columns:
+        df["signal_direction"] = np.where(df["spread_signal"] > 0, "RT premium", "DA premium")
+    df["abs_spread"] = df["spread_signal"].abs()
+    rows = []
+    for _, row in df.sort_values("abs_spread", ascending=False).head(8).iterrows():
+        cls = "spread-up" if row["spread_signal"] >= 0 else "spread-down"
+        rows.append(
+            "<tr>"
+            f"<td>{pd.to_datetime(row['datetime']):%m-%d %H:%M}</td>"
+            f"<td>{int(row['hour']):02d}</td>"
+            f"<td class='{cls}'>{row['spread_signal']:+.2f}</td>"
+            f"<td>{row['load_mw']:,.0f}</td>"
+            f"<td>{row['signal_direction']}</td>"
+            "</tr>"
         )
-
-        peak_df = chart_df[chart_df["hour"].between(16, 20)]
-        if not peak_df.empty:
-            fig.add_trace(
-                go.Scatter(
-                    x=peak_df["datetime"],
-                    y=peak_df["actual_da_lmp"],
-                    mode="markers",
-                    marker=dict(size=5, color="rgba(255,159,67,0.65)"),
-                    name="Peak-hour observations",
-                )
-            )
-
-        fig.add_trace(
-            go.Scatter(
-                x=chart_df["datetime"],
-                y=chart_df["actual_da_lmp"],
-                mode="lines",
-                name="Actual next-hour DA LMP",
-                line=dict(color="#e8f6ff", width=1.4),
-            )
-        )
-        fig.add_trace(
-            go.Scatter(
-                x=chart_df["datetime"],
-                y=chart_df["xgboost_prediction"],
-                mode="lines",
-                name="XGBoost forecast",
-                line=dict(color=CYAN, width=2.0),
-            )
-        )
-        fig.add_trace(
-            go.Scatter(
-                x=chart_df["datetime"],
-                y=chart_df["persistence_prediction"],
-                mode="lines",
-                name="Persistence benchmark",
-                line=dict(color="#7f94aa", width=1.3, dash="dot"),
-            )
-        )
-        fig.update_layout(title="Next-Hour Day-Ahead LMP Forecast Surveillance", yaxis_title="DA LMP ($/MWh)")
-        st.plotly_chart(plot_theme(fig, 520), use_container_width=True)
-
-    c1, c2 = st.columns([1.1, 1])
-    with c1:
-        section("Benchmark Stack", "MODEL COMPARISON")
-        if require_columns(benchmark, "benchmark_results.csv", ["model", "MAE", "RMSE"]):
-            display_df = benchmark.copy()
-            display_df["model"] = display_df["model"].map(clean_model_name)
-            st.dataframe(display_df[["model", "MAE", "RMSE"]].style.format({"MAE": "{:.2f}", "RMSE": "{:.2f}"}), use_container_width=True, hide_index=True)
-            fig = px.bar(
-                display_df,
-                x="model",
-                y="MAE",
-                color="model",
-                color_discrete_sequence=[MUTED, CYAN, ORANGE],
-                title="MAE by Forecasting Approach",
-            )
-            fig.update_layout(showlegend=False)
-            st.plotly_chart(plot_theme(fig, 360), use_container_width=True)
-    with c2:
-        section("Desk Commentary", "PRICE LEVEL")
-        callout(
-            "Operational Read",
-            "Current-hour price persistence is a demanding short-horizon benchmark. The model is most useful as a structured market monitor that combines lagged prices, volatility, load, weather, and calendar signals.",
-        )
-        callout(
-            "Risk Flag",
-            "Large deviations between actual DA LMP and the persistence line are the periods to inspect for volatility, congestion, and ramp stress.",
-        )
-
-
-def spike_page(data):
-    predictions = data["predictions"]
-    confusion = data["confusion_selected"] if data["confusion_selected"] is not None else data["confusion_default"]
-    spike_analysis = data["spike_analysis"]
-
-    section("Spike Classification Matrix", "ALERT QUALITY")
-    vals = confusion_values(confusion)
-    if vals is None:
-        missing_file_message("spike_confusion_matrix_selected.csv", ["Predicted No Spike", "Predicted Spike"])
-    else:
-        tn, fp, fn, tp = vals
-        cm = np.array([[tn, fp], [fn, tp]])
-        fig = go.Figure(
-            go.Heatmap(
-                z=cm,
-                x=["Pred No Spike", "Pred Spike"],
-                y=["Actual No Spike", "Actual Spike"],
-                colorscale=[[0, "#0b1829"], [0.45, "#155e75"], [1, "#27d8ff"]],
-                text=cm,
-                texttemplate="%{text}",
-                showscale=False,
-                hovertemplate="%{y}<br>%{x}: %{z}<extra></extra>",
-            )
-        )
-        fig.update_layout(title="Spike Risk Confusion Matrix", height=470)
-        st.plotly_chart(plot_theme(fig), use_container_width=True)
-        precision, recall = precision_recall(confusion)
-        m1, m2, m3, m4 = st.columns(4)
-        with m1:
-            kpi_card("True Spike Alerts", f"{tp}", "captured events", "green")
-        with m2:
-            kpi_card("Missed Spikes", f"{fn}", "risk coverage gap", "red")
-        with m3:
-            kpi_card("False Alarms", f"{fp}", "operator noise", "orange")
-        with m4:
-            kpi_card("Precision / Recall", f"{precision:.2f} / {recall:.2f}", "alert balance", "cyan")
-
-    c1, c2 = st.columns([1.1, 1])
-    with c1:
-        section("Spike Probability Tape", "TIME SERIES")
-        required = ["datetime", "actual_spike", "predicted_spike_probability"]
-        if require_columns(predictions, "model_predictions.csv", required):
-            prob_df = predictions[required].sort_values("datetime").tail(1200)
-            fig = go.Figure()
-            fig.add_trace(
-                go.Scatter(
-                    x=prob_df["datetime"],
-                    y=prob_df["predicted_spike_probability"],
-                    mode="lines",
-                    name="Predicted spike probability",
-                    line=dict(color=CYAN, width=1.8),
-                )
-            )
-            spikes = prob_df[prob_df["actual_spike"] == 1]
-            fig.add_trace(
-                go.Scatter(
-                    x=spikes["datetime"],
-                    y=spikes["predicted_spike_probability"],
-                    mode="markers",
-                    name="Actual spike",
-                    marker=dict(color=RED, size=7, line=dict(color="#ffd1d6", width=0.5)),
-                )
-            )
-            fig.add_hline(y=0.25, line_dash="dash", line_color=ORANGE, annotation_text="Selected alert threshold")
-            fig.update_layout(title="Spike Alert Probability Monitor", yaxis_title="Probability")
-            st.plotly_chart(plot_theme(fig, 430), use_container_width=True)
-    with c2:
-        section("Spike Hour Distribution", "RISK WINDOW")
-        if require_columns(spike_analysis, "spike_analysis.csv", ["hour", "spike_count"]):
-            fig = px.bar(
-                spike_analysis,
-                x="hour",
-                y="spike_count",
-                color="spike_count",
-                color_continuous_scale=["#11243a", ORANGE, RED],
-                title="DA Price Spike Count by Hour",
-            )
-            fig.update_layout(coloraxis_showscale=False)
-            st.plotly_chart(plot_theme(fig, 430), use_container_width=True)
-
-    section("Alert Interpretation", "ANALYST CALLOUTS")
-    a, b, c = st.columns(3)
-    with a:
-        callout("High Precision", "Fewer false spike alarms means the alert stream stays usable for market monitoring.")
-    with b:
-        callout("Recall Gap", "Some true spikes are missed; threshold tuning and class weights can improve coverage.")
-    with c:
-        callout("Stress Link", "Spike periods align more strongly with volatility and congestion than with average market conditions.")
-
-
-def congestion_page(data):
-    master = data["master"] if data["master"] is not None else data["predictions"]
-
-    section("Congestion / LMP Stress Map", "EVENT INTENSITY")
-    required = ["load_mw", "total_lmp_day_ahead", "congestion_price_day_ahead", "da_price_spike", "hour"]
-    if require_columns(master, "master_market_df.csv", required):
-        df = master[required].dropna().copy()
-        if len(df) > 3500:
-            df = df.sample(3500, random_state=7)
-        df["Extreme Event"] = np.where(df["da_price_spike"] == 1, "Spike", "Normal")
-        fig = px.scatter(
-            df,
-            x="congestion_price_day_ahead",
-            y="total_lmp_day_ahead",
-            color="Extreme Event",
-            size=np.clip(df["load_mw"] / df["load_mw"].max() * 12, 3, 12),
-            color_discrete_map={"Normal": "#4a8dff", "Spike": RED},
-            opacity=0.62,
-            title="DA Congestion Component vs DA LMP",
-            labels={
-                "congestion_price_day_ahead": "DA Congestion Price ($/MWh)",
-                "total_lmp_day_ahead": "DA LMP ($/MWh)",
-            },
-        )
-        fig.add_vline(x=df["congestion_price_day_ahead"].quantile(0.90), line_dash="dash", line_color=ORANGE)
-        fig.add_hline(y=df["total_lmp_day_ahead"].quantile(0.95), line_dash="dash", line_color=RED)
-        st.plotly_chart(plot_theme(fig, 520), use_container_width=True)
-
-        c1, c2 = st.columns([1, 1])
-        with c1:
-            section("Load / Price Dispersion", "VOLATILITY")
-            fig = px.scatter(
-                df,
-                x="load_mw",
-                y="total_lmp_day_ahead",
-                color="hour",
-                color_continuous_scale=["#1b365d", CYAN, ORANGE],
-                opacity=0.65,
-                title="Load vs DA LMP by Hour",
-                labels={"load_mw": "Load (MW)", "total_lmp_day_ahead": "DA LMP ($/MWh)"},
-            )
-            st.plotly_chart(plot_theme(fig, 420), use_container_width=True)
-        with c2:
-            section("Spike vs Non-Spike Congestion", "COMPONENT CHECK")
-            box_df = df.copy()
-            box_df["Spike Label"] = box_df["da_price_spike"].map({0: "No Spike", 1: "Spike"})
-            fig = px.box(
-                box_df,
-                x="Spike Label",
-                y="congestion_price_day_ahead",
-                color="Spike Label",
-                color_discrete_map={"No Spike": "#4a8dff", "Spike": RED},
-                title="DA Congestion Component by Spike Flag",
-            )
-            fig.update_layout(showlegend=False)
-            st.plotly_chart(plot_theme(fig, 420), use_container_width=True)
-
-    section("Operational Read", "CONGESTION")
-    callout(
-        "Market Observation",
-        "Spike hours tend to show higher load, higher average LMP, and stronger congestion components, suggesting price stress is linked to tighter system conditions.",
+    st.markdown(
+        "<table class='watch-table'><thead><tr><th>Time</th><th>Hr</th><th>RT-DA</th><th>Load</th><th>State</th></tr></thead>"
+        "<tbody>" + "".join(rows) + "</tbody></table>",
+        unsafe_allow_html=True,
     )
 
 
-def drivers_page(data):
-    section("Model Driver Stack", "FEATURE IMPORTANCE")
-    c1, c2 = st.columns(2)
-    with c1:
-        importance_bar(data["reg_importance"], "regression_feature_importance.csv", "Price Forecast Drivers")
-    with c2:
-        importance_bar(data["cls_importance"], "classification_feature_importance.csv", "Spike Risk Drivers")
-
-    section("Driver Interpretation", "MARKET STRUCTURE")
-    a, b, c = st.columns(3)
-    with a:
-        callout("Lag Structure", "Lagged DA LMP is the strongest predictor of next-hour price level.")
-    with b:
-        callout("Volatility Signal", "Rolling price dispersion and time-of-day features matter for spike risk.")
-    with c:
-        callout("Fundamentals", "Load and temperature contribute, but recent market prices embed much of that information.")
-
-
-def importance_bar(df, filename, title):
-    if not require_columns(df, filename, ["feature", "importance"]):
+def aep_hourly_regime(master):
+    need = ["hour", "total_lmp_day_ahead", "load_mw"]
+    if not has_cols(master, need):
+        st.info("AEP hourly regime view needs hour, load_mw, and total_lmp_day_ahead.")
         return
-    top = df.sort_values("importance", ascending=False).head(12).sort_values("importance")
-    fig = px.bar(
-        top,
-        x="importance",
-        y="feature",
-        orientation="h",
-        color="importance",
-        color_continuous_scale=["#1b365d", CYAN],
-        title=title,
+    df = master.dropna(subset=need).copy()
+    if "da_price_spike" not in df.columns:
+        df["da_price_spike"] = 0
+    hourly = (
+        df.groupby("hour", as_index=False)
+        .agg(
+            avg_da_lmp=("total_lmp_day_ahead", "mean"),
+            median_load_mw=("load_mw", "median"),
+            spike_rate=("da_price_spike", "mean"),
+        )
     )
-    fig.update_layout(coloraxis_showscale=False, yaxis_title=None, xaxis_title="Importance")
-    st.plotly_chart(plot_theme(fig, 560), use_container_width=True)
-
-
-def operations_page(data):
-    status = market_status(data)
-    section("Operations Console", "ACTIONABLE TAKEAWAYS")
-    c1, c2, c3, c4 = st.columns(4)
-    with c1:
-        callout("Price Persistence", "Recent DA LMP history dominates next-hour price forecasting.")
-    with c2:
-        callout("Peak-Hour Risk", "Late afternoon and evening periods show elevated price risk.")
-    with c3:
-        callout("Spike Detection", "The classifier identifies high-confidence spike events but recall can be improved.")
-    with c4:
-        callout("Market Monitoring", "Use the stack for exposure monitoring, congestion awareness, and demand response planning.")
-
-    section("Live-Style Operating Summary", "CONTROL ROOM VIEW")
-    c1, c2, c3 = st.columns([1, 1, 1])
-    with c1:
-        ops_card("Regime", status["regime"], "Current volatility classification from recent DA LMP behavior.", status["regime_tone"])
-    with c2:
-        ops_card("Congestion", status["congestion_pressure"], "Current pressure reading from recent congestion component.", status["congestion_tone"])
-    with c3:
-        ops_card("Recommended Watch", status["peak_window"], "Monitor spreads, ramps, and spike probability.", "cyan")
-
-    terminal(
-        "FINAL SIGNAL: raw PJM market data -> feature pipeline -> LMP forecast -> spike alerts -> congestion/spread surveillance"
-    )
-    st.success(
-        "This dashboard turns raw PJM market data into an interpretable forecasting and market analytics workflow suitable for utility, ISO/RTO, or energy trading analytics use cases."
-    )
-
-
-def pjm_map(data):
-    master = data["master"]
-    avg_lmp = np.nan
-    vol = np.nan
-    spike_rate = np.nan
-    if master is not None:
-        if "total_lmp_day_ahead" in master.columns:
-            avg_lmp = master["total_lmp_day_ahead"].mean()
-            vol = master["total_lmp_day_ahead"].std()
-        if "da_price_spike" in master.columns:
-            spike_rate = master["da_price_spike"].mean() * 100
-
-    nodes = pd.DataFrame(
-        {
-            "node": ["AEP", "PJM West", "ATSI", "PPL", "PSEG", "COMED"],
-            "lat": [39.96, 40.44, 41.50, 40.60, 40.73, 41.88],
-            "lon": [-82.99, -79.99, -81.69, -75.47, -74.17, -87.63],
-            "role": ["Focus Zone", "Western Hub", "Ohio Interface", "PA Load Pocket", "NJ Load Pocket", "Western Zone"],
-            "avg_da_lmp": [
-                avg_lmp,
-                avg_lmp * 0.98 if pd.notna(avg_lmp) else np.nan,
-                avg_lmp * 1.02 if pd.notna(avg_lmp) else np.nan,
-                avg_lmp * 1.05 if pd.notna(avg_lmp) else np.nan,
-                avg_lmp * 1.08 if pd.notna(avg_lmp) else np.nan,
-                avg_lmp * 0.96 if pd.notna(avg_lmp) else np.nan,
-            ],
-            "volatility": [
-                vol,
-                vol * 0.95 if pd.notna(vol) else np.nan,
-                vol * 1.02 if pd.notna(vol) else np.nan,
-                vol * 1.08 if pd.notna(vol) else np.nan,
-                vol * 1.12 if pd.notna(vol) else np.nan,
-                vol * 0.92 if pd.notna(vol) else np.nan,
-            ],
-            "spike_rate": [
-                spike_rate,
-                spike_rate * 0.90 if pd.notna(spike_rate) else np.nan,
-                spike_rate * 1.05 if pd.notna(spike_rate) else np.nan,
-                spike_rate * 1.10 if pd.notna(spike_rate) else np.nan,
-                spike_rate * 1.18 if pd.notna(spike_rate) else np.nan,
-                spike_rate * 0.88 if pd.notna(spike_rate) else np.nan,
-            ],
-        }
-    )
-
+    hourly["spike_rate"] *= 100
     fig = go.Figure()
     fig.add_trace(
-        go.Scattergeo(
-            lon=nodes["lon"],
-            lat=nodes["lat"],
-            text=nodes["node"],
-            customdata=np.stack([nodes["role"], nodes["avg_da_lmp"], nodes["volatility"], nodes["spike_rate"]], axis=-1),
-            mode="markers+text",
-            textposition="top center",
-            marker=dict(
-                size=np.clip(nodes["volatility"].fillna(10) * 1.2, 10, 32),
-                color=nodes["avg_da_lmp"],
-                colorscale=[[0, "#1b365d"], [0.5, CYAN], [1, ORANGE]],
-                line=dict(color="rgba(220,245,255,0.8)", width=1),
-                colorbar=dict(title="DA LMP", thickness=12, tickfont=dict(color=TEXT), titlefont=dict(color=TEXT)),
-                opacity=0.9,
-            ),
-            hovertemplate=(
-                "<b>%{text}</b><br>"
-                "Role: %{customdata[0]}<br>"
-                "Avg DA LMP: %{customdata[1]:.2f} $/MWh<br>"
-                "Volatility: %{customdata[2]:.2f}<br>"
-                "Spike rate: %{customdata[3]:.2f}%<extra></extra>"
-            ),
+        go.Bar(
+            x=hourly["hour"],
+            y=hourly["avg_da_lmp"],
+            name="Avg DA LMP",
+            marker=dict(color="rgba(56,189,248,0.72)", line=dict(color=COLORS["cyan"], width=0.6)),
+            yaxis="y",
         )
     )
     fig.add_trace(
-        go.Scattergeo(
-            lon=[-82.99, -79.99, -81.69, -75.47, -74.17, -87.63],
-            lat=[39.96, 40.44, 41.50, 40.60, 40.73, 41.88],
-            mode="lines",
-            line=dict(color="rgba(39,216,255,0.28)", width=1.5),
-            hoverinfo="skip",
-            showlegend=False,
+        go.Scatter(
+            x=hourly["hour"],
+            y=hourly["spike_rate"],
+            name="Spike rate",
+            mode="lines+markers",
+            line=dict(color=COLORS["orange"], width=2.4),
+            marker=dict(size=7, color=COLORS["orange"]),
+            yaxis="y2",
         )
     )
-    fig.update_geos(
-        scope="usa",
-        projection_type="albers usa",
-        showland=True,
-        landcolor="#0b1728",
-        showocean=True,
-        oceancolor="#07111f",
-        lakecolor="#07111f",
-        bgcolor="rgba(0,0,0,0)",
-        showcountries=False,
-        showsubunits=True,
-        subunitcolor="#223650",
-        countrycolor="#223650",
-        fitbounds="locations",
+    fig.update_layout(
+        title_text="",
+        xaxis_title="Hour EPT",
+        yaxis=dict(title="Avg DA LMP ($ / MWh)"),
+        yaxis2=dict(title="Spike rate (%)", overlaying="y", side="right", showgrid=False),
     )
-    fig.update_layout(title="PJM / AEP Operational Node View", height=520)
-    st.plotly_chart(plot_theme(fig), use_container_width=True)
-    st.caption("Approximate PJM operating-region node view for portfolio visualization. Official PJM zone boundary shapefiles would be used in a production geographic model.")
+    st.plotly_chart(
+        chart_theme(fig, height=520, hovermode="x", legend=True, compact_title_gap=True, legend_inside=True),
+        use_container_width=True,
+        config={"displayModeBar": False},
+    )
 
 
-data = load_dashboard_data()
+def aep_load_price_stress(master):
+    need = ["hour", "load_mw", "total_lmp_day_ahead"]
+    if not has_cols(master, need):
+        st.info("AEP load-price view needs hour, load_mw, and total_lmp_day_ahead.")
+        return
+    df = master.dropna(subset=need).copy()
+    if len(df) > 4500:
+        df = df.sample(4500, random_state=129)
+    if "da_price_spike" not in df.columns:
+        df["da_price_spike"] = 0
+    df["Price state"] = np.where(df["da_price_spike"] == 1, "Spike", "Normal")
+    fig = px.scatter(
+        df,
+        x="load_mw",
+        y="total_lmp_day_ahead",
+        color="Price state",
+        color_discrete_map={"Normal": COLORS["blue"], "Spike": COLORS["red"]},
+        opacity=0.58,
+        hover_data=["hour"],
+    )
+    fig.add_vline(x=df["load_mw"].quantile(0.90), line_color=COLORS["orange"], line_dash="dash")
+    fig.add_hline(y=df["total_lmp_day_ahead"].quantile(0.95), line_color=COLORS["orange"], line_dash="dash")
+    fig.update_layout(title_text="", xaxis_title="AEP load (MW)", yaxis_title="DA LMP ($ / MWh)")
+    st.plotly_chart(chart_theme(fig, height=480, hovermode="closest", legend=True, legend_inside=True), use_container_width=True)
 
-st.sidebar.markdown("### PJM MARKET OPS")
-st.sidebar.caption("Short-horizon LMP forecasting and risk surveillance")
-page = st.sidebar.radio(
-    "Navigation",
-    [
-        "⚡ Overview",
-        "📈 Forecasting",
-        "🔥 Spike Risk",
-        "🌐 Congestion",
-        "📊 Market Drivers",
-        "⚙ Operations",
-    ],
+
+def rolling_volatility(pred):
+    if not has_cols(pred, ["datetime", "actual_da_lmp"]):
+        return
+    df = pred.sort_values("datetime").copy()
+    df["rolling_sigma"] = df["actual_da_lmp"].rolling(48, min_periods=12).std()
+    fig = px.line(df, x="datetime", y="rolling_sigma")
+    fig.update_traces(line=dict(color=COLORS["orange"], width=2))
+    fig.update_layout(title_text="", yaxis_title="Std dev")
+    st.plotly_chart(chart_theme(fig, height=315, legend=False), use_container_width=True)
+
+
+def spread_timeline(spread):
+    if not has_cols(spread, ["datetime", "spread_signal"]):
+        return
+    df = spread.sort_values("datetime").tail(900).copy()
+    q = df["spread_signal"].abs().quantile(0.90)
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=df["datetime"], y=df["spread_signal"], name="RT-DA spread", line=dict(color=COLORS["cyan"], width=1.6)))
+    fig.add_hline(y=0, line=dict(color=COLORS["muted"], width=1))
+    fig.add_hline(y=q, line=dict(color=COLORS["orange"], dash="dash", width=1))
+    fig.add_hline(y=-q, line=dict(color=COLORS["orange"], dash="dash", width=1))
+    fig.update_layout(title_text="", yaxis_title="$ / MWh")
+    st.plotly_chart(chart_theme(fig, height=315, legend=False), use_container_width=True)
+
+
+def benchmark_table(benchmark):
+    if not has_cols(benchmark, ["model", "MAE", "RMSE"]):
+        return
+    show = benchmark[["model", "MAE", "RMSE"]].copy()
+    show["MAE"] = show["MAE"].map(lambda x: f"{x:.2f}")
+    show["RMSE"] = show["RMSE"].map(lambda x: f"{x:.2f}")
+    fig = go.Figure(
+        data=[
+            go.Table(
+                header=dict(
+                    values=["Model", "MAE", "RMSE"],
+                    fill_color="rgba(8,20,38,0.98)",
+                    line_color="rgba(148,163,184,0.16)",
+                    font=dict(color=COLORS["muted"], size=12),
+                    align="left",
+                    height=34,
+                ),
+                cells=dict(
+                    values=[show["model"], show["MAE"], show["RMSE"]],
+                    fill_color=[["rgba(15,23,42,0.86)", "rgba(30,41,78,0.68)"] * len(show)],
+                    line_color="rgba(148,163,184,0.10)",
+                    font=dict(color=COLORS["text"], size=12),
+                    align="left",
+                    height=34,
+                ),
+            )
+        ]
+    )
+    st.plotly_chart(chart_theme(fig, height=210, hovermode=False, legend=False), use_container_width=True)
+
+
+def confusion_heatmap(cm):
+    vals = cm_values(cm)
+    if not vals:
+        st.info("Confusion matrix output is not available.")
+        return
+    tn, fp, fn, tp = vals
+    z = np.array([[tn, fp], [fn, tp]])
+    fig = go.Figure(
+        go.Heatmap(
+            z=z,
+            x=["Pred no spike", "Pred spike"],
+            y=["Actual no spike", "Actual spike"],
+            text=z,
+            texttemplate="%{text}",
+            colorscale=[[0, "#07111f"], [0.55, "#075985"], [1, "#38bdf8"]],
+            showscale=False,
+        )
+    )
+    fig.update_layout(title_text="")
+    st.plotly_chart(chart_theme(fig, height=420, hovermode="closest", legend=False), use_container_width=True)
+
+
+def spike_probability_heatmap(pred):
+    if not has_cols(pred, ["datetime", "hour", "predicted_spike_probability"]):
+        return
+    heat = pred.copy()
+    heat["date"] = heat["datetime"].dt.date
+    pivot = heat.groupby(["hour", "date"])["predicted_spike_probability"].mean().unstack().sort_index(ascending=False)
+    pivot = pivot.iloc[:, -45:] if pivot.shape[1] > 45 else pivot
+    fig = go.Figure(
+        go.Heatmap(
+            z=pivot.values,
+            x=[str(day) for day in pivot.columns],
+            y=pivot.index,
+            colorscale=[[0, "#07111f"], [0.55, "#0ea5e9"], [1, "#f87171"]],
+            colorbar=dict(title="Risk"),
+        )
+    )
+    fig.update_layout(title_text="", yaxis_title="Hour")
+    st.plotly_chart(chart_theme(fig, height=420, hovermode="closest", legend=False), use_container_width=True)
+
+
+def spike_hour_chart(spike):
+    if not has_cols(spike, ["hour", "spike_count"]):
+        return
+    fig = px.bar(spike, x="hour", y="spike_count", color="spike_count", color_continuous_scale=["#0f172a", "#fb923c", "#f87171"])
+    fig.update_layout(title_text="", coloraxis_showscale=False)
+    st.plotly_chart(chart_theme(fig, height=320, legend=False), use_container_width=True)
+
+
+def feature_chart(df):
+    if not has_cols(df, ["feature", "importance"]):
+        st.info("Feature importance export is not available.")
+        return
+    top = df.sort_values("importance", ascending=False).head(12).sort_values("importance")
+    fig = px.bar(top, x="importance", y="feature", orientation="h", color="importance", color_continuous_scale=["#123254", "#38bdf8"])
+    fig.update_layout(title_text="", yaxis_title=None, coloraxis_showscale=False)
+    st.plotly_chart(chart_theme(fig, height=450, legend=False), use_container_width=True)
+
+
+def congestion_scatter(master):
+    need = ["congestion_price_day_ahead", "total_lmp_day_ahead", "load_mw"]
+    if not has_cols(master, need):
+        return
+    df = master.dropna(subset=need).copy()
+    if len(df) > 4000:
+        df = df.sample(4000, random_state=129)
+    if "da_price_spike" not in df.columns:
+        df["da_price_spike"] = 0
+    df["Market state"] = np.where(df["da_price_spike"] == 1, "Spike", "Normal")
+    fig = px.scatter(
+        df,
+        x="congestion_price_day_ahead",
+        y="total_lmp_day_ahead",
+        color="Market state",
+        size="load_mw",
+        size_max=12,
+        opacity=0.62,
+        color_discrete_map={"Normal": COLORS["blue"], "Spike": COLORS["red"]},
+    )
+    fig.add_hline(y=df["total_lmp_day_ahead"].quantile(0.95), line_color=COLORS["orange"], line_dash="dash")
+    fig.update_layout(title_text="", xaxis_title="DA congestion component", yaxis_title="DA LMP")
+    st.plotly_chart(chart_theme(fig, height=445, hovermode="closest", legend=True, legend_inside=True), use_container_width=True)
+
+
+def command_center(data):
+    stats = market_stats(data)
+    page_header(
+        "Overview",
+        "AEP short-horizon LMP forecasts, spike risk, congestion, and RT-DA spread analysis.",
+        stats,
+    )
+    output_warning(data)
+    metric_strip(stats)
+    main, risk = st.columns([2.15, 1])
+    with main:
+        panel_start("Actual vs Predicted Next-Hour DA LMP")
+        forecast_chart(data["pred"])
+    with risk:
+        panel_start("Forecast Context")
+        risk_panel(stats, data["pred"])
+    left, right = st.columns([1, 1.28])
+    with left:
+        panel_start("Extreme Spread Observations")
+        spread_watchlist(data["spread"])
+    with right:
+        panel_start("AEP Hourly Price Regime")
+        aep_hourly_regime(data["master"])
+
+
+def forecast_monitor(data):
+    stats = market_stats(data)
+    page_header("Forecasting", "Forecast series, benchmarks, and recent price dispersion.", stats)
+    output_warning(data)
+    top, side = st.columns([2.2, 1])
+    with top:
+        panel_start("Actual vs Predicted Next-Hour DA LMP")
+        forecast_chart(data["pred"], height=510)
+    with side:
+        panel_start("Benchmarks")
+        benchmark_table(data["benchmark"])
+        callout("Persistence is the bar to beat for next-hour LMP. The model adds context from lag structure, load, weather, and calendar signals.")
+    a, b = st.columns(2)
+    with a:
+        panel_start("48-Hour Rolling LMP Volatility")
+        rolling_volatility(data["pred"])
+    with b:
+        panel_start("RT-DA Spread Timeline")
+        spread_timeline(data["spread"])
+
+
+def spike_surveillance(data):
+    stats = market_stats(data)
+    page_header("Spike Risk", "Classification quality and hourly risk surface for next-hour DA price spikes.", stats)
+    output_warning(data)
+    a, b = st.columns([1, 1.25])
+    with a:
+        panel_start("Spike Classification Confusion Matrix")
+        confusion_heatmap(data["cm_selected"])
+    with b:
+        panel_start("Spike Probability Heatmap")
+        spike_probability_heatmap(data["pred"])
+    c, d = st.columns([1, 1])
+    with c:
+        panel_start("Spike Events by Hour")
+        spike_hour_chart(data["spike"])
+    with d:
+        panel_start("Spike Notes")
+        callout("Precision keeps false spike alarms controlled during routine price movement.")
+        callout("Recall remains the watch item when the desk cares more about missed stress events than extra alerts.", warn=True)
+
+
+def market_drivers(data):
+    stats = market_stats(data)
+    page_header("Market Drivers", "Feature importance readout for price level and spike-risk models.", stats)
+    output_warning(data)
+    a, b = st.columns(2)
+    with a:
+        panel_start("Regression Feature Importance")
+        feature_chart(data["reg_imp"])
+    with b:
+        panel_start("Spike Classification Feature Importance")
+        feature_chart(data["cls_imp"])
+    panel_start("Analyst Readout")
+    callout("Lagged day-ahead LMP dominates short-horizon price levels; lag-24 captures daily market structure.")
+    callout("Volatility, hour structure, load, and temperature remain useful for interpreting stress around spike windows.")
+
+
+def congestion_watch(data):
+    stats = market_stats(data)
+    page_header(
+        "Market Stress Analysis",
+        "Congestion, load pressure, and RT-DA spread behavior during stressed AEP market conditions.",
+        stats,
+    )
+    output_warning(data)
+    a, b = st.columns([1.12, 1])
+    with a:
+        panel_start("Congestion vs Day-Ahead LMP")
+        congestion_scatter(data["master"])
+    with b:
+        panel_start("Extreme RT-DA Spread Hours")
+        spread_timeline(data["spread"])
+        spread_watchlist(data["spread"])
+    panel_start("Load vs Day-Ahead LMP Stress")
+    aep_load_price_stress(data["master"])
+
+
+def model_notes(data):
+    stats = market_stats(data)
+    page_header("Model Notes", "Pipeline context and analytical interpretation.", stats)
+    output_warning(data)
+    metric_strip(stats)
+    a, b, c = st.columns(3)
+    with a:
+        panel_start("Market Problem")
+        callout("Short-horizon PJM LMP can move with demand ramps, price persistence, congestion, and stressed operating hours.")
+    with b:
+        panel_start("Model Output")
+        callout("The workflow forecasts next-hour day-ahead LMP, scores price spike risk, and benchmarks against persistence.")
+    with c:
+        panel_start("Analytical Use")
+        callout("Use the outputs for exposure review, congestion interpretation, and short-horizon risk analysis; not as a standalone trading rule.")
+    panel_start("Pipeline")
+    st.markdown(
+        '<div class="callout">PJM load + weather + DA/RT LMP &nbsp; -> &nbsp; Snowflake hourly mart &nbsp; -> &nbsp; time-series features &nbsp; -> &nbsp; forecasts + spike flags &nbsp; -> &nbsp; dashboard outputs</div>',
+        unsafe_allow_html=True,
+    )
+
+
+raw = load_data()
+date_source = raw["pred"]
+if "datetime" in date_source.columns and not date_source["datetime"].dropna().empty:
+    min_date = date_source["datetime"].min().date()
+    max_date = date_source["datetime"].max().date()
+else:
+    min_date = max_date = pd.Timestamp.today().date()
+
+st.markdown(
+    """
+    <div class="analytics-header">
+        <div>
+            <div class="analytics-title">PJM Energy Market Analytics Dashboard</div>
+            <div class="analytics-subtitle">AEP Zone | Day-Ahead LMP Forecasting and Spike Risk Analysis</div>
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
 )
-st.sidebar.markdown("---")
-st.sidebar.caption("Region: PJM AEP Zone")
-st.sidebar.caption("Artifacts: outputs/")
 
-render_topbar(data, page)
-render_kpi_strip(data)
+pages = [
+    "Overview",
+    "Forecasting",
+    "Spike Risk",
+    "Market Drivers",
+    "Market Stress",
+    "Model Notes",
+]
+nav, filter_drawer = st.columns([6.4, 1])
+with nav:
+    page = st.segmented_control("View", pages, default="Overview", label_visibility="collapsed")
+start_date = min_date
+end_date = max_date
+hour_range = (0, 23)
+with filter_drawer:
+    with st.popover("Filters", use_container_width=True):
+        st.markdown("#### Market Slice")
+        start_date = st.date_input("Start date", value=start_date, min_value=min_date, max_value=max_date)
+        end_date = st.date_input("End date", value=end_date, min_value=min_date, max_value=max_date)
+        hour_range = st.slider("Hour of day", 0, 23, hour_range)
+        st.caption("Filters apply across analysis views.")
+if end_date < start_date:
+    st.warning("End date is earlier than start date. Using the selected dates in chronological order.")
+    start_date, end_date = end_date, start_date
 
-if page == "⚡ Overview":
-    overview_page(data)
-elif page == "📈 Forecasting":
-    forecasting_page(data)
-elif page == "🔥 Spike Risk":
-    spike_page(data)
-elif page == "🌐 Congestion":
-    congestion_page(data)
-elif page == "📊 Market Drivers":
-    drivers_page(data)
-elif page == "⚙ Operations":
-    operations_page(data)
+data = filter_market_data(raw, start_date, end_date, hour_range)
+
+if page == "Overview":
+    command_center(data)
+elif page == "Forecasting":
+    forecast_monitor(data)
+elif page == "Spike Risk":
+    spike_surveillance(data)
+elif page == "Market Drivers":
+    market_drivers(data)
+elif page == "Market Stress":
+    congestion_watch(data)
+elif page == "Model Notes":
+    model_notes(data)

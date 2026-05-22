@@ -146,7 +146,7 @@ This is not a production trading strategy, but it demonstrates how forecasting o
 1. Install the core Python dependencies:
 
 ```bash
-pip install pandas numpy matplotlib seaborn scikit-learn xgboost streamlit plotly "snowflake-connector-python[pandas]" python-dotenv
+pip install -r requirements.txt
 ```
 
 2. Open Jupyter or VS Code notebooks from the project root.
@@ -172,7 +172,7 @@ This writes model predictions, benchmark tables, feature importance files, confu
 6. Launch the interactive Streamlit dashboard:
 
 ```bash
-streamlit run app.py
+python -m streamlit run app.py
 ```
 
 The dashboard reads from `outputs/` and falls back gracefully if optional files are missing.
