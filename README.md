@@ -2,6 +2,10 @@
 
 This project builds an applied energy market analytics and forecasting workflow using PJM AEP load, weather, and locational marginal price (LMP) data. The goal is to forecast short-horizon electricity demand and day-ahead prices, then interpret the market conditions that drive price risk, spikes, and real-time versus day-ahead spread behavior.
 
+## Live Dashboard
+
+Explore the deployed Streamlit dashboard: [pjm-energy-market-forecasting.streamlit.app](https://pjm-energy-market-forecasting.streamlit.app)
+
 ## Project Goals
 
 - Build a reproducible hourly data pipeline for PJM AEP load, weather, and LMP data.
@@ -20,6 +24,27 @@ The project uses public and locally downloaded hourly datasets:
 - Derived clean dataset: `data/aep_load_weather_hourly_dataset.csv`.
 
 Core files are stored in `data/`.
+
+## Local Data Setup
+
+Raw CSV files are intentionally excluded from GitHub. The committed files in `outputs/` are enough to run the Streamlit dashboard, but the notebooks need local source data if you want to reproduce the full workflow.
+
+Download the PJM files from [PJM Data Miner 2](https://dataminer2.pjm.com/) and the hourly Columbus weather data from the [Open-Meteo Historical Weather API](https://open-meteo.com/en/docs/historical-weather-api). Place the files in `data/` with these names:
+
+```text
+data/
+├── pjm_aep_hourly_load_2024.csv
+├── pjm_aep_hourly_load_2025.csv
+├── columbus_hourly_weather_2024_2025.csv
+├── rt_da_monthly_lmps_2024.csv
+└── rt_da_monthly_lmps_2025.csv
+```
+
+Run `notebooks/01_pjm_aep_load_weather_pipeline_eda.ipynb` first. It generates:
+
+```text
+data/aep_load_weather_hourly_dataset.csv
+```
 
 ## Notebook Workflow
 
